@@ -1,0 +1,2 @@
+# Benching-Compact-Convolutional-Transformers-with-BigEarthNet
+As a part of my capstone product for my masters degree I conducted research into how well compact convultional transformers perform LULC classification. This was done using a huggingface dataset, and tensorflow. Through the testing of two different CCTs varients, I found that CCTs do not outperform standard models such as ViT and ResNet. 
