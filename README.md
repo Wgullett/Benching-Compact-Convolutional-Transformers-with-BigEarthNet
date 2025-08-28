@@ -38,9 +38,13 @@ Projection dimension: 64
 
 Performance Metrics:
 
-Accuracy: 0.7719
+Categorical Accuracy: 50.97%
 
-Micro F1-score: 0.7674
+Micro F1-score: 24.77%
+
+Micro Precision score: 23.62%
+
+Micro Recall score: 26.07%
 
 ## Experiment 2: Deeper Model
 The second experiment aimed to improve performance by increasing the model's capacity. The number of layers and heads were increased, and the model was trained for 50 epochs.
@@ -55,13 +59,20 @@ Projection dimension: 128
 
 Performance Metrics:
 
-Accuracy: 0.7788
+Accuracy: 51.52%
 
-Micro F1-score: 0.7656
+Micro F1-score: 25.95%
+
+Micro Recall score: 23.1%
+
+Mirco Precision score: 24.44%
 
 ## Results Analysis
-The deeper model from Experiment 2 achieved a slightly higher accuracy, suggesting that the increased capacity helped it learn a more complex mapping from images to labels. However, its micro F1-score was slightly lower, indicating a small drop in the harmonic mean of precision and recall. This could be a sign of overfitting, even with regularization techniques, and suggests a need for further hyperparameter tuning.
+The deeper model from Experiment 2 achieved a slightly higher accuracy, suggesting that the increased capacity helped it learn a more complex mapping from images to labels. However, its micro F1-score was slightly lower, indicating a small drop in the harmonic mean of precision and recall. This could be a sign of overfitting, even with regularization techniques, and suggests a need for further hyperparameter tuning. Additionally, the poor f1-score, percision, and recall were due to the high class imbalance, and the issue of "rare classes".
 
+<img width="1200" height="1000" alt="image" src="https://github.com/user-attachments/assets/f8138f81-ecff-4f15-91d4-0b73e86d08ae" />
+
+As seen in the figure above the large amount of variation makes it difficult for the model to recogonize the labels which are less likely to occur during training. Unfortunately, due to this being a benchmarking experiment, adjusting the dataset to "fix" the class imbalances would give this model an unfair advantage when compared to other models which were benchmarked following the same methodologies. 
 ## Setup and Usage
 To run this project, you will need a Google Colab environment with a GPU. You must also have access to the BigEarthNet dataset on Hugging Face.
 
@@ -86,8 +97,6 @@ Hyperparameter Tuning: Systematically tune hyperparameters such as the learning 
 Regularization: Explore other regularization methods like Dropout or Stochastic Depth to prevent overfitting, particularly with larger models.
 
 Larger Model Architectures: Experiment with even deeper CCT models or other state-of-the-art vision architectures.
-
-Longer Training: Train the model for more epochs with a carefully managed learning rate schedule to see if performance improves.
 
 License
 This project is licensed under the MIT License.
