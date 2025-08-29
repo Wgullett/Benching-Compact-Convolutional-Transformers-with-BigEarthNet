@@ -68,11 +68,35 @@ Micro Recall score: 23.1%
 Mirco Precision score: 24.44%
 
 ## Results Analysis
+
 The deeper model from Experiment 2 achieved a slightly higher accuracy, suggesting that the increased capacity helped it learn a more complex mapping from images to labels. However, its micro F1-score was slightly lower, indicating a small drop in the harmonic mean of precision and recall. This could be a sign of overfitting, even with regularization techniques, and suggests a need for further hyperparameter tuning. Additionally, the poor f1-score, percision, and recall were due to the high class imbalance, and the issue of "rare classes".
 
 <img width="1200" height="1000" alt="image" src="https://github.com/user-attachments/assets/f8138f81-ecff-4f15-91d4-0b73e86d08ae" />
 
 As seen in the figure above the large amount of variation makes it difficult for the model to recogonize the labels which are less likely to occur during training. Unfortunately, due to this being a benchmarking experiment, adjusting the dataset to "fix" the class imbalances would give this model an unfair advantage when compared to other models which were benchmarked following the same methodologies. 
+
+To further confirm this, the precision of each individual label was calculated to determine if the miniority classes had lower precision rates than the majority ones. Confirming that the large class imbalance is respondsible for the differenece in Traning Accuracy, and Test Accuracy 
+
+Urban fabric: 0.14180618975139522,
+Industrial or commercial units: 0.019430051813471502,
+Arable land: 0.37272177593504363,
+Permanent crops: 0.05540114878636279,
+Pastures: 0.19320486815415822,
+Complex cultivation patterns: 0.20480880648899188,
+Land principally occupied by agriculture, with significant areas of natural vegetation: 0.25513207406579486,
+Agro-forestry areas: 0.051168123835459364,
+Broad-leaved forest: 0.27075573502280087,
+Coniferous forest: 0.3150844640686627,
+Mixed forest: 0.33682954826802314,
+Natural grassland and sparsely vegetated areas: 0.015978695073235686,
+Moors, heathland and sclerophyllous vegetation: 0.03383458646616541,
+Transitional woodland, shrub: 0.2896164867995854,
+Beaches, dunes, sands: 0.004081632653061225,
+Inland wetlands: 0.03715472989489123,
+Coastal wetlands: 0.003952569169960474,
+Inland waters: 0.1278070233890851,
+Marine waters: 0.14451808582341047}
+
 ## Setup and Usage
 To run this project, you will need a Google Colab environment with a GPU. You must also have access to the BigEarthNet dataset on Hugging Face.
 
