@@ -1,0 +1,24 @@
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.toc
+
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+
+# Data cache and checkpoints (never commit these)
+ben19_cache/
+*.npy
+*.pt
+*.h5
+*.weights.h5
+
+# OS
+.DS_Store

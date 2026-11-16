@@ -1,144 +1,149 @@
-# CCT for BigEarthNet Classification
-This repository contains the code and results for a project focused on classifying satellite imagery from the BigEarthNet dataset using a Compact Convolutional Transformer (CCT). The project was conducted as part of a machine learning research effort to explore the effectiveness of hybrid vision architectures on multi-label satellite image classification.
+# Benchmarking Compact Convolutional Transformers with BigEarthNet
+
+A Compact Convolutional Transformer (CCT) trained from scratch for multi-label land use / land cover
+classification on BigEarthNet-19, reaching **78.4% test micro-F1 with 3.94M parameters in 38.5 minutes**
+on a single A100 GPU.
+
+This repository also documents a correction. The 2024 version of this project (an M.Sc. Major Research
+Project at Toronto Metropolitan University) reported a micro-F1 near 18% and concluded that CCTs were not
+viable for this task. That number came from an evaluation bug, not from the models. The notebook here
+re-runs the benchmark with a corrected pipeline and reproduces the bug deliberately as a control.
+
+## Results
+
+CCT-7, trained from scratch on the RGB rendering of BigEarthNet-S2 v1.0, 30 epochs, test split of
+125,866 patches.
+
+| Decision rule | Precision | Recall | Micro-F1 | Accuracy¹ | Macro-F1 | mAP |
+|---|---|---|---|---|---|---|
+| Threshold 0.5 | 80.8 | 76.1 | **78.4** | 64.5 | 72.4 | 79.5 |
+| Per-class thresholds (tuned on validation) | 75.9 | 81.8 | 78.7 | 64.9 | 73.2 | 79.5 |
+
+¹ Micro-averaged Jaccard index, TP / (TP + FP + FN) — the quantity reported in the accuracy column of
+Papoutsis et al.
+
+### Against the published benchmark
+
+| Model | Source | Params | Accuracy | Precision | Recall | F1 |
+|---|---|---|---|---|---|---|
+| **CCT-7** | **This work, RGB** | **3.9M** | **64.5** | **80.8** | **76.1** | **78.4** |
+| WRN-B5-ECA | Papoutsis et al. | 5.2M | – | 82.0 | 76.1 | 79.0 |
+| WRN-B4-ECA | Papoutsis et al. | 1.0M | – | 82.4 | 75.5 | 78.8 |
+| VGG19 | Papoutsis et al. | 20M | 63.6 | 81.7 | 74.2 | 77.7 |
+| ResNet50 | Papoutsis et al. | 23M | 62.4 | 78.8 | 75.0 | 76.8 |
+| ViT/20 | Papoutsis et al. | 7M | 62.1 | 80.5 | 73.1 | 76.6 |
+| K-Branch CNN | Papoutsis et al. | 36M | 47.3 | 63.4 | 65.1 | 64.2 |
+| CCT-2, 2024 version (mis-scored) | this project, 2024 | 0.4M | – | 25.1 | 13.5 | 17.6 |
+
+**This comparison is indicative, not like-for-like.** The benchmark models were trained on ~10 Sentinel-2
+spectral bands and the full ~590k-patch archive; this work uses 3-band RGB and the 519,284 patches that
+remain after cloud- and snow-affected patches are removed. Near-infrared and short-wave infrared carry
+much of the signal for vegetation and water, so the RGB model works with less information; the easier
+patch set works in its favour. Training a convolutional baseline inside this same pipeline is the next
+step — the notebook has a `resnet18` preset for exactly that.
+
+Per-class results are in [`results/per_class.csv`](results/per_class.csv). Best and worst classes:
+
+| Class | Test patches | Precision | Recall | F1 |
+|---|---|---|---|---|
+| Marine waters | 18,023 | 98.4 | 98.0 | 98.2 |
+| Coniferous forest | 39,532 | 87.4 | 85.5 | 86.4 |
+| Arable land | 47,150 | 86.7 | 85.1 | 85.9 |
+| … | | | | |
+| Natural grassland / sparse | 2,799 | 72.3 | 43.5 | 54.3 |
+| Industrial or commercial | 2,808 | 65.9 | 45.2 | 53.6 |
+
+## What went wrong in 2024
+
+| # | Problem | Effect |
+|---|---|---|
+| 1 | Test set built with `shuffle=True`, then predictions scored against `ds["test"]["labels"]` in the original order | Every prediction was compared with the labels of a **different image**. Per-class precision equalled class prevalence (r = 0.999) — the signature of chance-level scoring. |
+| 2 | "Accuracy" was Keras `CategoricalAccuracy` | Not a multi-label metric, and not the accuracy of the benchmark paper. It also selected the checkpoint. |
+| 3 | `RandomCrop(32, 32)` on 120×120 multi-label patches | The model saw 7% of each patch while being asked for the labels of the whole patch. |
+| 4 | PNGs decoded in Python every step; 900-token sequences | ~5 h/epoch, which forced the 32px crop and a 4-epoch run. |
+| 5 | Stray quote in the checkpoint path | The "best" weights were never reloaded. |
+| 6 | Label smoothing on a 19-way multi-label BCE; constant LR | Smaller effects, all in the wrong direction. |
+
+Two sets of 2024 numbers exist: the MRP paper reports micro-F1 of 17.6% (CCT-2) and 18.0% (CCT-4), while
+the previous README of this repository reports 24.8% and 26.0% from later runs. Both sets come from the
+same mis-scored evaluation, so neither measures the models.
+
+**The control experiment.** Section 9 of the notebook takes the *working* CCT-7, shuffles its test
+predictions, and scores them against labels in the original order:
+
+```
+aligned  : micro-F1 0.784  precision 0.808  recall 0.761
+shuffled : micro-F1 0.245  precision 0.253  recall 0.238
+correlation between shuffled per-class precision and class prevalence: 1.000
+```
+
+The 2024 full-patch run reported precision 26.0 / recall 22.8 / F1 24.3 — almost exactly what a working
+model scores under shuffled labels. The 2024 models were never scored correctly, so their true
+performance is unknown.
+
+## What the corrected pipeline does
+
+- **Decodes the dataset once** into a `uint8` array on local disk and holds the training split in GPU
+  memory, so a batch is an index operation rather than 256 PNG decodes. ~1.3 min/epoch.
+- **Trains on the full 120×120 patch** with a tokenizer sized for that resolution. The CIFAR tokenizer
+  from the CCT paper gives 900 tokens at this input size; one extra conv block gives 225, cutting
+  attention cost ~16×.
+- **Label-preserving augmentation only** — flips and 90° rotations. No random cropping: the labels
+  describe the whole 1.2 km × 1.2 km patch.
+- **Evaluates in a single ordered pass**, with predictions and labels collected from the same batches,
+  and reports micro-F1, macro-F1, micro-Jaccard and mAP.
+- **Resumes after a Colab disconnect** from the last finished epoch.
+- **Checks itself before spending GPU hours** by memorising a single batch.
+
+## Repository layout
+
+```
+CCT_BigEarthNet_v2.ipynb     corrected pipeline, with the run outputs
+paper/                       the rewritten paper (LaTeX source + PDF + figures)
+results/                     per-class metrics and the run summary as CSV/JSON
+original-2024/               the 2024 paper, notebooks and README, kept for reference
+```
 
-## Project Overview
-The goal of this project was to implement and evaluate a Compact Convolutional Transformer (CCT) model, a hybrid architecture combining the strengths of Convolutional Neural Networks (CNNs) and Vision Transformers (ViTs). The model was trained to classify satellite images from the BigEarthNet dataset, which consists of multi-spectral image patches from the Sentinel-1 and Sentinel-2 satellites.
+## Running it
 
-## Dataset
-The BigEarthNet dataset was used for this project. The original 43 land-cover classes were mapped to 19 more general classes, and one-hot encoding was applied to prepare the labels for training. The dataset was split into training, validation, and testing sets to ensure robust model evaluation.
+Open `CCT_BigEarthNet_v2.ipynb` in Google Colab, choose a GPU runtime (A100 or L4 preferred; T4 works),
+and *Run all*. The configuration cell at the top controls everything:
 
-The data preprocessing pipeline was implemented to handle the multi-label nature of the task, ensuring that the model could predict multiple land-cover classes for each image patch.
+```python
+MODEL      = "cct7"   # "cct2" | "cct4" | "cct7" | "resnet18"
+EPOCHS     = 30
+BATCH_SIZE = 256
+```
 
-## Model Architecture
-The core of this project is the Compact Convolutional Transformer (CCT) model. This architecture features a convolutional front-end that acts as a tokenizer, extracting local features from the image and generating a sequence of tokens. This sequence is then fed into a standard Transformer encoder, which captures global dependencies between the tokens.
+Each model writes to its own folder and the final section tabulates every run found there. The first run
+decodes the dataset (~22 GB on local disk, a few minutes); later runs reuse it.
 
-The CCT model's key components include:
+A Hugging Face token is needed to download the dataset. Store it as a Colab secret named `HF_TOKEN`
+(key icon in the left sidebar) — never paste it into a cell.
 
-Tokenizer: A convolutional block that transforms the input image into a sequence of feature tokens.
+## Data
 
-Position Embedding: A learned embedding that provides positional information to the tokens, which is crucial for the Transformer to understand spatial relationships.
+[`danielz01/BigEarthNet-S2-v1.0`](https://huggingface.co/datasets/danielz01/BigEarthNet-S2-v1.0) on the
+Hugging Face Hub: 519,284 Sentinel-2 patches of 120×120 pixels at 10 m resolution, RGB, with cloud- and
+snow-affected patches removed. The 43 CORINE classes are mapped to the 19-class nomenclature in the
+notebook. Patches average 2.9 labels, and the classes are heavily imbalanced — *Arable land* appears in
+37.2% of training patches, *Coastal wetlands* in 0.4%.
 
-Transformer Encoder: Composed of several Transformer layers, each with a multi-head self-attention mechanism and a feed-forward network.
+## Paper
 
-Sequence Pooling: A final pooling layer that aggregates the output of the Transformer to produce a single feature vector for classification.
+[`paper/cct_bigearthnet_paper.pdf`](paper/cct_bigearthnet_paper.pdf) — the 2024 Major Research Project,
+rewritten around these results. LaTeX source and figures are beside it.
 
-## Experiments and Results
-Two main experiments were conducted to evaluate the CCT model. Both were trained on Google Colab with a single GPU, using the AdamW optimizer and a BinaryCrossentropy loss function with label smoothing.
+## References
 
-## Experiment 1: Baseline Model
-The initial experiment used a smaller CCT configuration. The model was trained for 10 epochs.
+1. I. Papoutsis, N. I. Bountos, A. Zavras, D. Michail, C. Tryfonopoulos, "Benchmarking and scaling of deep
+   learning models for land cover image classification," *ISPRS Journal of Photogrammetry and Remote
+   Sensing*, vol. 195, pp. 250–268, 2023. [doi:10.1016/j.isprsjprs.2022.11.012](https://doi.org/10.1016/j.isprsjprs.2022.11.012)
+2. A. Hassani et al., "Escaping the big data paradigm with compact transformers,"
+   [arXiv:2104.05704](https://arxiv.org/abs/2104.05704), 2021.
+3. G. Sumbul, M. Charfuelan, B. Demir, V. Markl, "BigEarthNet: A large-scale benchmark archive for remote
+   sensing image understanding," *IGARSS*, 2019. [doi:10.1109/igarss.2019.8900532](https://doi.org/10.1109/igarss.2019.8900532)
 
-Model Configuration:
+## License
 
-Number of layers: 2
-
-Number of heads: 4
-
-Projection dimension: 64
-
-Performance Metrics:
-
-Categorical Accuracy: 50.97%
-
-Micro F1-score: 24.77%
-
-Micro Precision score: 23.62%
-
-Micro Recall score: 26.07%
-
-## Experiment 2: Deeper Model
-The second experiment aimed to improve performance by increasing the model's capacity. The number of layers and heads were increased, and the model was trained for 50 epochs.
-
-Model Configuration:
-
-Number of layers: 4
-
-Number of heads: 8
-
-Projection dimension: 128
-
-Performance Metrics:
-
-Accuracy: 51.52%
-
-Micro F1-score: 25.95%
-
-Micro Recall score: 23.1%
-
-Mirco Precision score: 24.44%
-
-## Results Analysis
-
-The deeper model from Experiment 2 achieved a slightly higher accuracy, suggesting that the increased capacity helped it learn a more complex mapping from images to labels. However, its micro F1-score was slightly lower, indicating a small drop in the harmonic mean of precision and recall. This could be a sign of overfitting, even with regularization techniques, and suggests a need for further hyperparameter tuning. Additionally, the poor f1-score, percision, and recall were due to the high class imbalance, and the issue of "rare classes".
-
-<img width="1200" height="1000" alt="image" src="https://github.com/user-attachments/assets/f8138f81-ecff-4f15-91d4-0b73e86d08ae" />
-
-As seen in the figure above the large amount of variation makes it difficult for the model to recogonize the labels which are less likely to occur during training. Unfortunately, due to this being a benchmarking experiment, adjusting the dataset to "fix" the class imbalances would give this model an unfair advantage when compared to other models which were benchmarked following the same methodologies. 
-
-To further confirm this, the precision of each individual label was calculated to determine if the miniority classes had lower precision rates than the majority ones. Confirming that the large class imbalance is respondsible for the differenece in Traning Accuracy, and Test Accuracy 
-
-Urban fabric: 0.14180618975139522,
-
-Industrial or commercial units: 0.019430051813471502,
-
-Arable land: 0.37272177593504363,
-
-Permanent crops: 0.05540114878636279,
-
-Pastures: 0.19320486815415822,
-
-Complex cultivation patterns: 0.20480880648899188,
-
-Land principally occupied by agriculture, with significant areas of natural vegetation: 0.25513207406579486,
-
-Agro-forestry areas: 0.051168123835459364,
-
-Broad-leaved forest: 0.27075573502280087,
-
-Coniferous forest: 0.3150844640686627,
-
-Mixed forest: 0.33682954826802314,
-
-Natural grassland and sparsely vegetated areas: 0.015978695073235686,
-
-Moors, heathland and sclerophyllous vegetation: 0.03383458646616541,
-
-Transitional woodland, shrub: 0.2896164867995854,
-
-Beaches, dunes, sands: 0.004081632653061225,
-
-Inland wetlands: 0.03715472989489123,
-
-Coastal wetlands: 0.003952569169960474,
-
-Inland waters: 0.1278070233890851,
-
-Marine waters: 0.14451808582341047
-
-## Setup and Usage
-To run this project, you will need a Google Colab environment with a GPU. You must also have access to the BigEarthNet dataset on Hugging Face.
-
-Clone the Repository:
-
-git clone https://github.com/your-username/your-repo-name.git
-cd your-repo-name
-
-Install Dependencies:
-The main dependencies are tensorflow, keras, huggingface-hub, and datasets.
-
-pip install tensorflow keras huggingface-hub datasets
-
-Run the Notebook:
-Open the notebook in Google Colab and execute the cells. You will be prompted to log in to your Hugging Face account with a write token to access the dataset.
-
-Future Work
-Advanced Data Augmentation: Implement more advanced data augmentation techniques like Mixup or CutMix to improve generalization.
-
-Hyperparameter Tuning: Systematically tune hyperparameters such as the learning rate, weight decay, and label smoothing factor to find the optimal configuration.
-
-Regularization: Explore other regularization methods like Dropout or Stochastic Depth to prevent overfitting, particularly with larger models.
-
-Larger Model Architectures: Experiment with even deeper CCT models or other state-of-the-art vision architectures.
-
-License
-This project is licensed under the MIT License.
+MIT — see [LICENSE](LICENSE).

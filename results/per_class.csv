@@ -1,0 +1,20 @@
+class,test_support,prevalence,precision,recall,f1_at_0.5,f1_tuned,tuned_threshold,average_precision
+Urban fabric,17928,0.142,0.813,0.754,0.782,0.784,0.40,0.875
+Industrial or commercial units,2808,0.022,0.659,0.452,0.536,0.562,0.35,0.573
+Arable land,47150,0.375,0.867,0.851,0.859,0.861,0.40,0.943
+Permanent crops,6812,0.054,0.700,0.582,0.636,0.642,0.40,0.712
+Pastures,24170,0.192,0.782,0.745,0.763,0.763,0.50,0.864
+Complex cultivation patterns,25638,0.204,0.727,0.705,0.716,0.725,0.40,0.783
+Agriculture with natural vegetation,32052,0.255,0.707,0.660,0.683,0.695,0.35,0.761
+Agro-forestry areas,7261,0.058,0.781,0.787,0.784,0.782,0.40,0.880
+Broad-leaved forest,34130,0.271,0.823,0.721,0.769,0.780,0.35,0.872
+Coniferous forest,39532,0.314,0.874,0.855,0.864,0.866,0.40,0.944
+Mixed forest,42641,0.339,0.815,0.832,0.823,0.825,0.40,0.903
+Natural grassland and sparsely vegetated areas,2799,0.022,0.723,0.435,0.543,0.555,0.30,0.597
+"Moors, heathland and sclerophyllous vegetation",3859,0.031,0.684,0.628,0.655,0.664,0.30,0.721
+"Transitional woodland, shrub",36211,0.288,0.715,0.638,0.675,0.701,0.30,0.771
+"Beaches, dunes, sands",221,0.002,0.563,0.624,0.592,0.595,0.55,0.661
+Inland wetlands,5349,0.042,0.770,0.572,0.657,0.665,0.35,0.727
+Coastal wetlands,310,0.002,0.640,0.561,0.598,0.607,0.65,0.609
+Inland waters,16177,0.129,0.902,0.792,0.843,0.845,0.40,0.918
+Marine waters,18023,0.143,0.984,0.980,0.982,0.982,0.55,0.998

@@ -1,0 +1,23 @@
+{
+  "model": "cct7",
+  "params_M": 3.94,
+  "tokens": 225,
+  "epochs_trained": 30,
+  "train_minutes": 38.5,
+  "hardware": "NVIDIA A100 80GB (Google Colab)",
+  "data_source": "danielz01/BigEarthNet-S2-v1.0 (RGB)",
+  "test_patches": 125866,
+  "best_epoch_by_val_micro_f1": 18,
+  "test@0.5": {
+    "micro_precision": 0.8082, "micro_recall": 0.7610, "micro_f1": 0.7839,
+    "micro_jaccard": 0.6446, "macro_f1": 0.7242, "mAP": 0.7954
+  },
+  "test@tuned": {
+    "micro_precision": 0.7586, "micro_recall": 0.8179, "micro_f1": 0.7871,
+    "micro_jaccard": 0.6490, "macro_f1": 0.7315, "mAP": 0.7954
+  },
+  "shuffled_label_control": {
+    "micro_precision": 0.253, "micro_recall": 0.238, "micro_f1": 0.245,
+    "precision_vs_prevalence_correlation": 1.000
+  }
+}
